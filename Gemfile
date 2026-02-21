@@ -234,3 +234,6 @@ gem 'hcaptcha', '~> 7.1'
 gem 'mail', '~> 2.8'
 
 gem 'vite_rails', '~> 3.0.19'
+
+gem 'httparty'  # For HTTP calls to quantum oracle and QRL RPC
+gem 'eth'       # For EVM-compatible interactions with QRL 2.0
