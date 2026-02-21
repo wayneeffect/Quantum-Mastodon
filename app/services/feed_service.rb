@@ -1,12 +1,12 @@
 def statuses
   # Existing logic to get candidate statuses
-  candidate_statuses = from_redis || from_database  # Adjust to your Mastodon version
+  candidate_statuses = from_redis || from_database  # Adjust based on Mastodon version
 
-  # Quantum re-ranking
+  # Quantum re-ranking (optional)
   if ENV['QUANTUM_ORACLE_URL'].present?
     payload = {
       user_id: @account.id,
-      posts: candidate_statuses.first(50).map do |status|  # Cap to avoid huge payloads
+      posts: candidate_statuses.first(50).map do |status|
         {
           id: status.id,
           content: status.text.truncate(280),
@@ -17,7 +17,10 @@ def statuses
       end
     }
 
-    result = QuantumOracleService.call("vqe_qaoa", payload)
+    cache_key = "quantum_feed_rank/#{@account.id}/#{candidate_statuses.map(&:id).sort.join(',')[0..100]}"
+    result = Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
+      QuantumOracleService.call("vqe_qaoa", payload)
+    end
 
     if result && result['ranked'].is_a?(Array) && result['ranked'].any?
       ranked_statuses = result['ranked'].map do |ranked_id|
@@ -29,7 +32,7 @@ def statuses
         Rails.logger.info("Quantum feed ranking applied for user #{@account.id} (#{candidate_statuses.count} posts)")
       end
     else
-      Rails.logger.warn("Quantum oracle returned invalid/no ranking; using default order")
+      Rails.logger.warn("Quantum oracle returned invalid/empty ranking; using default order")
     end
   end
 
