@@ -4,6 +4,7 @@ class Api::V1::StatusesController < Api::BaseController
   include Authorization
   include AsyncRefreshesConcern
   include Api::InteractionPoliciesConcern
+  include QrlAnchorable
 
   before_action -> { authorize_if_got_token! :read, :'read:statuses' }, except: [:create, :update, :destroy]
   before_action -> { doorkeeper_authorize! :write, :'write:statuses' }, only:   [:create, :update, :destroy]
