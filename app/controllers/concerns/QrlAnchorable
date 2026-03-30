@@ -1,0 +1,31 @@
+# app/controllers/concerns/qrl_anchorable.rb
+module QrlAnchorable
+  extend ActiveSupport::Concern
+
+  included do
+    after_action :anchor_to_qrl, only: [:create]
+  end
+
+  private
+
+  def anchor_to_qrl
+    # Skip if post not saved or QRL not configured
+    return unless @status&.persisted? && ENV['QRL_RPC_URL'].present?
+
+    data = {
+      post_id: @status.id,
+      content_hash: Digest::SHA256.hexdigest(@status.text.to_s),
+      user_id: current_account.id,
+      timestamp: @status.created_at.to_i
+    }
+
+    result = QrlBlockchainService.submit_transaction("new_post", data)
+
+    if result && result['tx_hash'].present?
+      @status.update(qrl_tx_hash: result['tx_hash'])
+      Rails.logger.info("QRL tx anchored for status #{@status.id}: #{result['tx_hash']}")
+    else
+      Rails.logger.warn("QRL anchoring failed for status #{@status.id}; post saved without blockchain record")
+    end
+  end
+end
